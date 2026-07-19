@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المنتجات - نظام إدارة المخازن</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="فتح القائمة">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="nav-title">
+                    <i class="fas fa-warehouse"></i>
+                    نظام إدارة المخازن
+                </h1>
+            </div>
+            <div class="nav-actions">
+                <div class="nav-date" id="navDate">
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+                <div class="nav-user">
+                    <i class="fas fa-user-circle"></i>
+                    <span>مدير النظام</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-cubes"></i>
+            <span>القائمة الرئيسية</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item">
+                <a href="index.html" class="sidebar-link">
+                    <i class="fas fa-th-large"></i>
+                    <span>لوحة التحكم</span>
+                </a>
+            </li>
+            <li class="sidebar-item active">
+                <a href="products.html" class="sidebar-link">
+                    <i class="fas fa-box"></i>
+                    <span>المنتجات</span>
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="sales.html" class="sidebar-link">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>المبيعات</span>
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="reports.html" class="sidebar-link">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>التقارير</span>
+                </a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <p>© 2024 نظام المخازن</p>
+        </div>
+    </aside>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h2 class="page-title">إدارة المنتجات</h2>
+                <p class="page-description">إضافة وتعديل وحذف المنتجات من المخزون</p>
+            </div>
+
+            <!-- Add Product Button -->
+            <div class="section-actions">
+                <button class="btn btn-primary" id="showAddProductForm">
+                    <i class="fas fa-plus-circle"></i>
+                    إضافة منتج جديد
+                </button>
+            </div>
+
+            <!-- Add/Edit Product Form Modal -->
+            <div class="modal" id="productModal">
+                <div class="modal-overlay"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title" id="modalTitle">إضافة منتج جديد</h3>
+                        <button class="modal-close" id="closeModal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="productForm" class="product-form">
+                            <input type="hidden" id="productId">
+                            <div class="form-group">
+                                <label for="productName">اسم المنتج <span class="required">*</span></label>
+                                <input type="text" id="productName" class="form-control" placeholder="أدخل اسم المنتج" required>
+                                <span class="error-message" id="productNameError"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="productCode">كود المنتج <span class="required">*</span></label>
+                                <input type="text" id="productCode" class="form-control" placeholder="أدخل كود المنتج" required>
+                                <span class="error-message" id="productCodeError"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="productCategory">التصنيف <span class="required">*</span></label>
+                                <select id="productCategory" class="form-control" required>
+                                    <option value="">اختر التصنيف</option>
+                                    <option value="إلكترونيات">إلكترونيات</option>
+                                    <option value="ملابس">ملابس</option>
+                                    <option value="مواد غذائية">مواد غذائية</option>
+                                    <option value="أثاث">أثاث</option>
+                                    <option value="أدوات منزلية">أدوات منزلية</option>
+                                </select>
+                                <span class="error-message" id="productCategoryError"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="productPrice">السعر <span class="required">*</span></label>
+                                <input type="number" id="productPrice" class="form-control" placeholder="أدخل سعر المنتج" min="0" step="0.01" required>
+                                <span class="error-message" id="productPriceError"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="productQuantity">الكمية <span class="required">*</span></label>
+                                <input type="number" id="productQuantity" class="form-control" placeholder="أدخل الكمية" min="0" required>
+                                <span class="error-message" id="productQuantityError"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="productSupplier">المورد <span class="required">*</span></label>
+                                <input type="text" id="productSupplier" class="form-control" placeholder="أدخل اسم المورد" required>
+                                <span class="error-message" id="productSupplierError"></span>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-success" id="saveProductBtn">
+                                    <i class="fas fa-save"></i>
+                                    حفظ المنتج
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="cancelProductBtn">
+                                    <i class="fas fa-times"></i>
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters and Search -->
+            <div class="filters-section">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" class="form-control search-input" placeholder="البحث عن منتج...">
+                </div>
+                <div class="filter-group">
+                    <select id="categoryFilter" class="form-control filter-select">
+                        <option value="all">جميع التصنيفات</option>
+                        <option value="إلكترونيات">إلكترونيات</option>
+                        <option value="ملابس">ملابس</option>
+                        <option value="مواد غذائية">مواد غذائية</option>
+                        <option value="أثاث">أثاث</option>
+                        <option value="أدوات منزلية">أدوات منزلية</option>
+                    </select>
+                    <select id="sortBy" class="form-control filter-select">
+                        <option value="default">الترتيب الافتراضي</option>
+                        <option value="name-asc">الاسم (أ - ي)</option>
+                        <option value="name-desc">الاسم (ي - أ)</option>
+                        <option value="price-asc">السعر (الأقل)</option>
+                        <option value="price-desc">السعر (الأعلى)</option>
+                        <option value="date-asc">التاريخ (الأقدم)</option>
+                        <option value="date-desc">التاريخ (الأحدث)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Products Table -->
+            <div class="table-container">
+                <table class="table" id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>اسم المنتج</th>
+                            <th>الكود</th>
+                            <th>التصنيف</th>
+                            <th>السعر</th>
+                            <th>الكمية</th>
+                            <th>المورد</th>
+                            <th>تاريخ الإضافة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        <!-- Products will be rendered here -->
+                    </tbody>
+                </table>
+                <div class="no-products-message" id="noProductsMessage" style="display: none;">
+                    <i class="fas fa-box-open"></i>
+                    <p>لا توجد منتجات متاحة</p>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="pagination">
+                <!-- Pagination will be rendered here -->
+            </div>
+        </div>
+    </main>
+
+    <script src="js/script.js" defer></script>
+</body>
+</html>

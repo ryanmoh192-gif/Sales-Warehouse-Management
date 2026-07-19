@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقارير - نظام إدارة المخازن</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="فتح القائمة">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="nav-title">
+                    <i class="fas fa-warehouse"></i>
+                    نظام إدارة المخازن
+                </h1>
+            </div>
+            <div class="nav-actions">
+                <div class="nav-date" id="navDate">
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+                <div class="nav-user">
+                    <i class="fas fa-user-circle"></i>
+                    <span>مدير النظام</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-cubes"></i>
+            <span>القائمة الرئيسية</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item">
+                <a href="index.html" class="sidebar-link">
+                    <i class="fas fa-th-large"></i>
+                    <span>لوحة التحكم</span>
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="products.html" class="sidebar-link">
+                    <i class="fas fa-box"></i>
+                    <span>المنتجات</span>
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="sales.html" class="sidebar-link">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>المبيعات</span>
+                </a>
+            </li>
+            <li class="sidebar-item active">
+                <a href="reports.html" class="sidebar-link">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>التقارير</span>
+                </a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <p>© 2024 نظام المخازن</p>
+        </div>
+    </aside>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h2 class="page-title">التقارير</h2>
+                <p class="page-description">عرض وتحليل تقارير المخزون والمبيعات</p>
+                <div class="page-actions">
+                    <button class="btn btn-primary" id="printReport">
+                        <i class="fas fa-print"></i>
+                        طباعة التقرير
+                    </button>
+                </div>
+            </div>
+
+            <!-- Report Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card stat-card-primary">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="stat-card-content">
+                        <h3 class="stat-card-title">إجمالي المنتجات</h3>
+                        <p class="stat-card-value" id="reportTotalProducts">0</p>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-card-success">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-shopping-bag"></i>
+                    </div>
+                    <div class="stat-card-content">
+                        <h3 class="stat-card-title">إجمالي المبيعات</h3>
+                        <p class="stat-card-value" id="reportTotalSales">0</p>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-card-warning">
+                    <div class="stat-card-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stat-card-content">
+                        <h3 class="stat-card-title">إجمالي الأرباح</h3>
+                        <p class="stat-card-value" id="reportTotalProfits">0 ج.م</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Grid -->
+            <div class="reports-grid">
+                <!-- Top Selling Products -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-star"></i>
+                            أكثر المنتجات مبيعاً
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>المنتج</th>
+                                        <th>عدد مرات البيع</th>
+                                        <th>إجمالي المبيعات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="topSellingTableBody">
+                                    <!-- Top selling products will be rendered here -->
+                                </tbody>
+                            </table>
+                            <div class="no-data-message" id="noTopSellingMessage" style="display: none;">
+                                <p>لا توجد بيانات كافية</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Low Stock Products -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            المنتجات منخفضة المخزون
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>المنتج</th>
+                                        <th>الكمية المتبقية</th>
+                                        <th>المورد</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lowStockTableBody">
+                                    <!-- Low stock products will be rendered here -->
+                                </tbody>
+                            </table>
+                            <div class="no-data-message" id="noLowStockMessage" style="display: none;">
+                                <p>لا توجد منتجات منخفضة المخزون</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Sales -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-history"></i>
+                            آخر المبيعات
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>المنتج</th>
+                                        <th>الكمية</th>
+                                        <th>الإجمالي</th>
+                                        <th>التاريخ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportSalesTableBody">
+                                    <!-- Recent sales will be rendered here -->
+                                </tbody>
+                            </table>
+                            <div class="no-data-message" id="noReportSalesMessage" style="display: none;">
+                                <p>لا توجد عمليات بيع</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/script.js" defer></script>
+</body>
+</html>
