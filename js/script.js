@@ -2,6 +2,7 @@
  * نظام إدارة المخازن والمبيعات
  * JavaScript File
  * تم التطوير باستخدام Vanilla JavaScript
+ * يتضمن نظام تسجيل دخول متكامل
  */
 
 // ============================================
@@ -14,6 +15,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const PRODUCTS_KEY = 'products';
     const SALES_KEY = 'sales';
     const SETTINGS_KEY = 'settings';
+    const USERS_KEY = 'users';
+    const CURRENT_USER_KEY = 'currentUser';
     const ITEMS_PER_PAGE = 10;
     let currentPage = 1;
     let editingProductId = null;
@@ -22,9 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // دوال LocalStorage
     // ============================================
     
-    /**
-     * حفظ البيانات في LocalStorage
-     */
     function saveToLocalStorage(key, data) {
         try {
             localStorage.setItem(key, JSON.stringify(data));
@@ -34,9 +34,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    /**
-     * استرجاع البيانات من LocalStorage
-     */
     function getFromLocalStorage(key) {
         try {
             const data = localStorage.getItem(key);
@@ -47,10 +44,245 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    /**
-     * تهيئة البيانات الافتراضية إذا لم تكن موجودة
-     */
+    // ============================================
+    // نظام المستخدمين وتسجيل الدخول
+    // ============================================
+    
+    function initializeUsers() {
+        if (!getFromLocalStorage(USERS_KEY)) {
+            const defaultUsers = [
+                {
+                    id: 1,
+                    username: 'admin',
+                    password: 'admin123',
+                    fullName: 'مدير النظام',
+                    role: 'admin',
+                    email: 'admin@example.com',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 2,
+                    username: 'user',
+                    password: 'user123',
+                    fullName: 'مستخدم عادي',
+                    role: 'user',
+                    email: 'user@example.com',
+                    createdAt: new Date().toISOString()
+                }
+            ];
+            saveToLocalStorage(USERS_KEY, defaultUsers);
+        }
+    }
+
+    function getUsers() {
+        return getFromLocalStorage(USERS_KEY) || [];
+    }
+
+    function findUser(username, password) {
+        const users = getUsers();
+        return users.find(u => u.username === username && u.password === password);
+    }
+
+    function getCurrentUser() {
+        const userData = getFromLocalStorage(CURRENT_USER_KEY);
+        if (userData && userData.sessionExpiry) {
+            // التحقق من انتهاء الجلسة (24 ساعة)
+            if (new Date().getTime() > userData.sessionExpiry) {
+                logout();
+                return null;
+            }
+        }
+        return userData;
+    }
+
+    function isLoggedIn() {
+        const currentUser = getCurrentUser();
+        return currentUser && currentUser.username;
+    }
+
+    function login(username, password, rememberMe = false) {
+        const user = findUser(username, password);
+        
+        if (!user) {
+            return { success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة' };
+        }
+        
+        const sessionData = {
+            username: user.username,
+            fullName: user.fullName,
+            role: user.role,
+            loginTime: new Date().toISOString(),
+            sessionExpiry: rememberMe ? new Date().getTime() + (30 * 24 * 60 * 60 * 1000) : new Date().getTime() + (24 * 60 * 60 * 1000)
+        };
+        
+        saveToLocalStorage(CURRENT_USER_KEY, sessionData);
+        
+        return { success: true, user: sessionData };
+    }
+
+    function logout() {
+        localStorage.removeItem(CURRENT_USER_KEY);
+        
+        // التحقق من أننا في صفحة تسجيل الدخول
+        const currentPath = window.location.pathname;
+        const pageName = currentPath.split('/').pop();
+        
+        if (pageName !== 'login.html' && pageName !== '') {
+            window.location.href = 'login.html';
+        }
+    }
+
+    function checkAuth() {
+        const currentPath = window.location.pathname;
+        const pageName = currentPath.split('/').pop();
+        
+        // السماح بالوصول إلى صفحة تسجيل الدخول فقط
+        if (pageName === 'login.html' || pageName === '' || currentPath === '/') {
+            // إذا كان المستخدم مسجل دخوله بالفعل، توجيهه إلى لوحة التحكم
+            if (isLoggedIn() && pageName === 'login.html') {
+                window.location.href = 'index.html';
+            }
+            return;
+        }
+        
+        // التحقق من تسجيل الدخول لجميع الصفحات الأخرى
+        if (!isLoggedIn()) {
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        // تحديث معلومات المستخدم في الواجهة
+        updateUserInterface();
+    }
+
+    function updateUserInterface() {
+        const currentUser = getCurrentUser();
+        const userNameElements = document.querySelectorAll('#currentUserName, #welcomeUser');
+        
+        userNameElements.forEach(el => {
+            if (el && currentUser) {
+                el.textContent = currentUser.fullName || currentUser.username;
+            }
+        });
+    }
+
+    // ============================================
+    // معالجة تسجيل الدخول
+    // ============================================
+    
+    function initLoginPage() {
+        const loginForm = document.getElementById('loginForm');
+        if (!loginForm) return;
+        
+        const loginUsername = document.getElementById('loginUsername');
+        const loginPassword = document.getElementById('loginPassword');
+        const rememberMe = document.getElementById('rememberMe');
+        const loginError = document.getElementById('loginError');
+        const loginErrorMessage = document.getElementById('loginErrorMessage');
+        const passwordToggle = document.getElementById('passwordToggle');
+        
+        // زر إظهار/إخفاء كلمة المرور
+        if (passwordToggle) {
+            passwordToggle.addEventListener('click', function() {
+                const type = loginPassword.getAttribute('type') === 'password' ? 'text' : 'password';
+                loginPassword.setAttribute('type', type);
+                
+                const icon = this.querySelector('i');
+                if (type === 'text') {
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            });
+        }
+        
+        // معالجة تقديم نموذج تسجيل الدخول
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = loginUsername.value.trim();
+            const password = loginPassword.value;
+            
+            // التحقق من الحقول
+            let isValid = true;
+            
+            document.getElementById('loginUsernameError').textContent = '';
+            document.getElementById('loginPasswordError').textContent = '';
+            
+            if (!username) {
+                document.getElementById('loginUsernameError').textContent = 'يرجى إدخال اسم المستخدم';
+                isValid = false;
+            }
+            
+            if (!password) {
+                document.getElementById('loginPasswordError').textContent = 'يرجى إدخال كلمة المرور';
+                isValid = false;
+            }
+            
+            if (!isValid) return;
+            
+            // محاولة تسجيل الدخول
+            const result = login(username, password, rememberMe ? rememberMe.checked : false);
+            
+            if (result.success) {
+                // إظهار رسالة نجاح
+                loginError.style.display = 'none';
+                showNotification('تم تسجيل الدخول بنجاح', 'success');
+                
+                // التوجيه إلى لوحة التحكم
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 500);
+            } else {
+                // إظهار رسالة خطأ
+                loginError.style.display = 'flex';
+                loginErrorMessage.textContent = result.message;
+                loginPassword.value = '';
+            }
+        });
+        
+        // ملء بيانات الدخول الافتراضية عند النقر على معلومات الدخول
+        const loginInfo = document.querySelector('.login-info');
+        if (loginInfo) {
+            loginInfo.addEventListener('click', function() {
+                loginUsername.value = 'admin';
+                loginPassword.value = 'admin123';
+            });
+            loginInfo.style.cursor = 'pointer';
+        }
+    }
+
+    // ============================================
+    // زر تسجيل الخروج
+    // ============================================
+    
+    function initLogoutButton() {
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                const confirmed = confirm('هل أنت متأكد من تسجيل الخروج؟');
+                if (confirmed) {
+                    showNotification('تم تسجيل الخروج بنجاح', 'success');
+                    setTimeout(() => {
+                        logout();
+                    }, 500);
+                }
+            });
+        }
+    }
+
+    // ============================================
+    // تهيئة البيانات الافتراضية
+    // ============================================
+    
     function initializeData() {
+        // تهيئة المستخدمين
+        initializeUsers();
+        
         // تهيئة المنتجات
         if (!getFromLocalStorage(PRODUCTS_KEY)) {
             const defaultProducts = [
@@ -129,7 +361,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     price: 5000,
                     total: 10000,
                     date: '2024-06-01',
-                    time: '10:30'
+                    time: '10:30',
+                    seller: 'admin'
                 },
                 {
                     id: 2,
@@ -139,7 +372,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     price: 35,
                     total: 350,
                     date: '2024-06-02',
-                    time: '14:15'
+                    time: '14:15',
+                    seller: 'admin'
                 }
             ];
             saveToLocalStorage(SALES_KEY, defaultSales);
@@ -161,23 +395,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // دوال المنتجات
     // ============================================
     
-    /**
-     * الحصول على جميع المنتجات
-     */
     function getProducts() {
         return getFromLocalStorage(PRODUCTS_KEY) || [];
     }
 
-    /**
-     * حفظ جميع المنتجات
-     */
     function saveProducts(products) {
         saveToLocalStorage(PRODUCTS_KEY, products);
     }
 
-    /**
-     * إضافة منتج جديد
-     */
     function addProduct(product) {
         const products = getProducts();
         const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
@@ -191,9 +416,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return newProduct;
     }
 
-    /**
-     * تحديث منتج موجود
-     */
     function updateProduct(productId, updatedData) {
         const products = getProducts();
         const index = products.findIndex(p => p.id === productId);
@@ -205,9 +427,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return null;
     }
 
-    /**
-     * حذف منتج
-     */
     function deleteProduct(productId) {
         const products = getProducts();
         const filteredProducts = products.filter(p => p.id !== productId);
@@ -215,9 +434,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return filteredProducts;
     }
 
-    /**
-     * البحث عن منتج
-     */
     function searchProducts(products, query) {
         if (!query) return products;
         const searchTerm = query.toLowerCase();
@@ -228,17 +444,11 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
-    /**
-     * فلترة المنتجات حسب التصنيف
-     */
     function filterProductsByCategory(products, category) {
         if (!category || category === 'all') return products;
         return products.filter(p => p.category === category);
     }
 
-    /**
-     * ترتيب المنتجات
-     */
     function sortProducts(products, sortBy) {
         const sortedProducts = [...products];
         switch (sortBy) {
@@ -263,32 +473,26 @@ document.addEventListener("DOMContentLoaded", () => {
     // دوال المبيعات
     // ============================================
     
-    /**
-     * الحصول على جميع المبيعات
-     */
     function getSales() {
         return getFromLocalStorage(SALES_KEY) || [];
     }
 
-    /**
-     * حفظ جميع المبيعات
-     */
     function saveSales(sales) {
         saveToLocalStorage(SALES_KEY, sales);
     }
 
-    /**
-     * إضافة عملية بيع جديدة
-     */
     function addSale(sale) {
         const sales = getSales();
         const newId = sales.length > 0 ? Math.max(...sales.map(s => s.id)) + 1 : 1;
         const now = new Date();
+        const currentUser = getCurrentUser();
+        
         const newSale = {
             ...sale,
             id: newId,
             date: now.toISOString().split('T')[0],
-            time: now.toTimeString().split(' ')[0].substring(0, 5)
+            time: now.toTimeString().split(' ')[0].substring(0, 5),
+            seller: currentUser ? currentUser.username : 'unknown'
         };
         sales.push(newSale);
         saveSales(sales);
@@ -299,48 +503,30 @@ document.addEventListener("DOMContentLoaded", () => {
     // دوال الإحصائيات
     // ============================================
     
-    /**
-     * حساب إجمالي المنتجات
-     */
     function getTotalProducts() {
         return getProducts().length;
     }
 
-    /**
-     * حساب إجمالي المبيعات (عدد العمليات)
-     */
     function getTotalSalesCount() {
         return getSales().length;
     }
 
-    /**
-     * حساب إجمالي الأرباح
-     */
     function getTotalProfits() {
         const sales = getSales();
         return sales.reduce((total, sale) => total + sale.total, 0);
     }
 
-    /**
-     * الحصول على المنتجات منخفضة المخزون
-     */
     function getLowStockProducts() {
         const products = getProducts();
         const settings = getFromLocalStorage(SETTINGS_KEY) || { lowStockThreshold: 10 };
         return products.filter(p => p.quantity <= settings.lowStockThreshold);
     }
 
-    /**
-     * الحصول على آخر المبيعات
-     */
     function getRecentSales(limit = 5) {
         const sales = getSales();
         return sales.slice(-limit).reverse();
     }
 
-    /**
-     * الحصول على أكثر المنتجات مبيعاً
-     */
     function getTopSellingProducts(limit = 5) {
         const sales = getSales();
         const productSales = {};
@@ -367,9 +553,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // دوال الترقيم (Pagination)
     // ============================================
     
-    /**
-     * تقسيم البيانات إلى صفحات
-     */
     function paginateData(data, page, itemsPerPage) {
         const startIndex = (page - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
@@ -381,9 +564,6 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
-    /**
-     * إنشاء أزرار الترقيم
-     */
     function renderPagination(totalPages, currentPage, container) {
         if (!container) return;
         
@@ -391,7 +571,6 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (totalPages <= 1) return;
         
-        // زر السابق
         const prevBtn = document.createElement('button');
         prevBtn.className = 'pagination-btn';
         prevBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
@@ -403,7 +582,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         container.appendChild(prevBtn);
         
-        // أرقام الصفحات
         for (let i = 1; i <= totalPages; i++) {
             const pageBtn = document.createElement('button');
             pageBtn.className = `pagination-btn ${i === currentPage ? 'active' : ''}`;
@@ -414,7 +592,6 @@ document.addEventListener("DOMContentLoaded", () => {
             container.appendChild(pageBtn);
         }
         
-        // زر التالي
         const nextBtn = document.createElement('button');
         nextBtn.className = 'pagination-btn';
         nextBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
@@ -431,11 +608,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // دوال الإشعارات
     // ============================================
     
-    /**
-     * عرض إشعار للمستخدم
-     */
     function showNotification(message, type = 'info') {
-        // إزالة الإشعارات السابقة
         const existingNotifications = document.querySelectorAll('.notification');
         existingNotifications.forEach(notif => notif.remove());
         
@@ -460,7 +633,6 @@ document.addEventListener("DOMContentLoaded", () => {
         notification.innerHTML = `${icon} ${message}`;
         document.body.appendChild(notification);
         
-        // إزالة الإشعار بعد 3 ثواني
         setTimeout(() => {
             notification.style.animation = 'slideDown 0.3s ease reverse';
             setTimeout(() => {
@@ -475,16 +647,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // دوال التنسيق والعرض
     // ============================================
     
-    /**
-     * تنسيق العملة
-     */
     function formatCurrency(amount) {
         return amount.toLocaleString('ar-EG') + ' ج.م';
     }
 
-    /**
-     * تنسيق التاريخ
-     */
     function formatDate(dateString) {
         const options = { year: 'numeric', month: 'long', day: 'numeric' };
         return new Date(dateString).toLocaleDateString('ar-EG', options);
@@ -525,7 +691,6 @@ document.addEventListener("DOMContentLoaded", () => {
         sidebarToggle.addEventListener('click', toggleSidebar);
         sidebarOverlay.addEventListener('click', toggleSidebar);
         
-        // إغلاق sidebar عند النقر على رابط
         const sidebarLinks = sidebar.querySelectorAll('.sidebar-link');
         sidebarLinks.forEach(link => {
             link.addEventListener('click', () => {
@@ -540,7 +705,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // تحديث لوحة التحكم (Dashboard)
     // ============================================
     function updateDashboard() {
-        // تحديث الإحصائيات
         const totalProductsEl = document.getElementById('totalProducts');
         const totalSalesEl = document.getElementById('totalSales');
         const totalProfitsEl = document.getElementById('totalProfits');
@@ -559,7 +723,6 @@ document.addEventListener("DOMContentLoaded", () => {
             lowStockCountEl.textContent = getLowStockProducts().length;
         }
         
-        // تحديث آخر العمليات
         const recentSalesList = document.getElementById('recentSalesList');
         if (recentSalesList) {
             const recentSales = getRecentSales(5);
@@ -595,766 +758,26 @@ document.addEventListener("DOMContentLoaded", () => {
         
         currentPage = page;
         
-        // الحصول على المنتجات مع تطبيق الفلاتر
         let products = getProducts();
         
-        // تطبيق البحث
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             products = searchProducts(products, searchInput.value);
         }
         
-        // تطبيق الفلترة
         const categoryFilter = document.getElementById('categoryFilter');
         if (categoryFilter) {
             products = filterProductsByCategory(products, categoryFilter.value);
         }
         
-        // تطبيق الترتيب
         const sortBy = document.getElementById('sortBy');
         if (sortBy) {
             products = sortProducts(products, sortBy.value);
         }
         
-        // تطبيق الترقيم
         const paginatedData = paginateData(products, page, ITEMS_PER_PAGE);
         
-        // عرض البيانات
         if (paginatedData.items.length === 0) {
             tableBody.innerHTML = '';
             if (noProductsMessage) noProductsMessage.style.display = 'block';
-            if (productsTable) productsTable.style.display = 'none';
-        } else {
-            if (noProductsMessage) noProductsMessage.style.display = 'none';
-            if (productsTable) productsTable.style.display = '';
-            
-            tableBody.innerHTML = paginatedData.items.map((product, index) => {
-                const rowNumber = (page - 1) * ITEMS_PER_PAGE + index + 1;
-                const lowStock = product.quantity <= 10;
-                
-                return `
-                    <tr>
-                        <td>${rowNumber}</td>
-                        <td><strong>${product.name}</strong></td>
-                        <td><span class="badge badge-info">${product.code}</span></td>
-                        <td>${product.category}</td>
-                        <td>${formatCurrency(product.price)}</td>
-                        <td>
-                            <span class="badge ${lowStock ? 'badge-danger' : 'badge-success'}">
-                                ${product.quantity}
-                            </span>
-                        </td>
-                        <td>${product.supplier}</td>
-                        <td>${formatDate(product.date)}</td>
-                        <td>
-                            <div class="actions-cell">
-                                <button class="btn btn-sm btn-primary edit-product-btn" data-id="${product.id}" title="تعديل">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn btn-sm btn-danger delete-product-btn" data-id="${product.id}" title="حذف">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-            
-            // إضافة event listeners لأزرار التعديل والحذف
-            attachProductActionListeners();
-        }
-        
-        // عرض الترقيم
-        if (paginationContainer) {
-            renderPagination(paginatedData.totalPages, page, paginationContainer);
-        }
-    }
-
-    /**
-     * إضافة مستمعي الأحداث لأزرار المنتجات
-     */
-    function attachProductActionListeners() {
-        // أزرار التعديل
-        const editButtons = document.querySelectorAll('.edit-product-btn');
-        editButtons.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const productId = parseInt(this.getAttribute('data-id'));
-                openEditProductModal(productId);
-            });
-        });
-        
-        // أزرار الحذف
-        const deleteButtons = document.querySelectorAll('.delete-product-btn');
-        deleteButtons.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const productId = parseInt(this.getAttribute('data-id'));
-                confirmDeleteProduct(productId);
-            });
-        });
-    }
-
-    // ============================================
-    // إدارة المنتجات (Modal)
-    // ============================================
-    
-    /**
-     * فتح نافذة إضافة منتج
-     */
-    function openAddProductModal() {
-        const modal = document.getElementById('productModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const productForm = document.getElementById('productForm');
-        
-        if (!modal || !modalTitle || !productForm) return;
-        
-        editingProductId = null;
-        modalTitle.textContent = 'إضافة منتج جديد';
-        productForm.reset();
-        document.getElementById('productId').value = '';
-        
-        // مسح رسائل الخطأ
-        clearFormErrors();
-        
-        modal.classList.add('active');
-    }
-
-    /**
-     * فتح نافذة تعديل منتج
-     */
-    function openEditProductModal(productId) {
-        const modal = document.getElementById('productModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const productForm = document.getElementById('productForm');
-        
-        if (!modal || !modalTitle || !productForm) return;
-        
-        const products = getProducts();
-        const product = products.find(p => p.id === productId);
-        
-        if (!product) {
-            showNotification('المنتج غير موجود', 'error');
-            return;
-        }
-        
-        editingProductId = productId;
-        modalTitle.textContent = 'تعديل المنتج';
-        
-        // ملء النموذج بالبيانات
-        document.getElementById('productId').value = product.id;
-        document.getElementById('productName').value = product.name;
-        document.getElementById('productCode').value = product.code;
-        document.getElementById('productCategory').value = product.category;
-        document.getElementById('productPrice').value = product.price;
-        document.getElementById('productQuantity').value = product.quantity;
-        document.getElementById('productSupplier').value = product.supplier;
-        
-        // مسح رسائل الخطأ
-        clearFormErrors();
-        
-        modal.classList.add('active');
-    }
-
-    /**
-     * إغلاق النافذة المنبثقة
-     */
-    function closeModal() {
-        const modal = document.getElementById('productModal');
-        if (modal) {
-            modal.classList.remove('active');
-            editingProductId = null;
-        }
-    }
-
-    /**
-     * مسح رسائل الخطأ في النموذج
-     */
-    function clearFormErrors() {
-        const errorMessages = document.querySelectorAll('.error-message');
-        errorMessages.forEach(el => el.textContent = '');
-    }
-
-    /**
-     * التحقق من صحة بيانات المنتج
-     */
-    function validateProductForm(data) {
-        let isValid = true;
-        
-        // التحقق من اسم المنتج
-        if (!data.name || data.name.trim().length < 2) {
-            document.getElementById('productNameError').textContent = 'يجب إدخال اسم المنتج (حرفين على الأقل)';
-            isValid = false;
-        }
-        
-        // التحقق من الكود
-        if (!data.code || data.code.trim().length < 3) {
-            document.getElementById('productCodeError').textContent = 'يجب إدخال كود المنتج (3 أحرف على الأقل)';
-            isValid = false;
-        }
-        
-        // التحقق من التصنيف
-        if (!data.category) {
-            document.getElementById('productCategoryError').textContent = 'يجب اختيار التصنيف';
-            isValid = false;
-        }
-        
-        // التحقق من السعر
-        if (!data.price || data.price <= 0) {
-            document.getElementById('productPriceError').textContent = 'يجب إدخال سعر صحيح أكبر من صفر';
-            isValid = false;
-        }
-        
-        // التحقق من الكمية
-        if (data.quantity === '' || data.quantity < 0) {
-            document.getElementById('productQuantityError').textContent = 'يجب إدخال كمية صحيحة';
-            isValid = false;
-        }
-        
-        // التحقق من المورد
-        if (!data.supplier || data.supplier.trim().length < 2) {
-            document.getElementById('productSupplierError').textContent = 'يجب إدخال اسم المورد';
-            isValid = false;
-        }
-        
-        return isValid;
-    }
-
-    /**
-     * حفظ المنتج (إضافة أو تعديل)
-     */
-    function saveProduct(event) {
-        event.preventDefault();
-        
-        // جمع البيانات من النموذج
-        const productData = {
-            name: document.getElementById('productName').value.trim(),
-            code: document.getElementById('productCode').value.trim(),
-            category: document.getElementById('productCategory').value,
-            price: parseFloat(document.getElementById('productPrice').value),
-            quantity: parseInt(document.getElementById('productQuantity').value),
-            supplier: document.getElementById('productSupplier').value.trim()
-        };
-        
-        // التحقق من صحة البيانات
-        if (!validateProductForm(productData)) {
-            return;
-        }
-        
-        if (editingProductId) {
-            // تحديث منتج موجود
-            updateProduct(editingProductId, productData);
-            showNotification('تم تحديث المنتج بنجاح', 'success');
-        } else {
-            // إضافة منتج جديد
-            addProduct(productData);
-            showNotification('تم إضافة المنتج بنجاح', 'success');
-        }
-        
-        // إغلاق النافذة وتحديث الجدول
-        closeModal();
-        renderProductsTable(currentPage);
-        updateDashboard();
-        updateSalesProductSelect();
-    }
-
-    /**
-     * تأكيد حذف المنتج
-     */
-    function confirmDeleteProduct(productId) {
-        const products = getProducts();
-        const product = products.find(p => p.id === productId);
-        
-        if (!product) return;
-        
-        const confirmed = confirm(`هل أنت متأكد من حذف المنتج "${product.name}"؟`);
-        
-        if (confirmed) {
-            deleteProduct(productId);
-            showNotification('تم حذف المنتج بنجاح', 'success');
-            renderProductsTable(currentPage);
-            updateDashboard();
-            updateSalesProductSelect();
-        }
-    }
-
-    // ============================================
-    // إدارة المبيعات
-    // ============================================
-    
-    /**
-     * تحديث قائمة المنتجات في صفحة المبيعات
-     */
-    function updateSalesProductSelect() {
-        const saleProductSelect = document.getElementById('saleProduct');
-        if (!saleProductSelect) return;
-        
-        const products = getProducts();
-        
-        saleProductSelect.innerHTML = '<option value="">اختر المنتج</option>' + 
-            products.map(product => `
-                <option value="${product.id}" 
-                    data-price="${product.price}" 
-                    data-quantity="${product.quantity}"
-                    data-name="${product.name}">
-                    ${product.name} - (${product.quantity} متاح) - ${formatCurrency(product.price)}
-                </option>
-            `).join('');
-    }
-
-    /**
-     * تحديث السعر والكمية المتاحة عند اختيار منتج
-     */
-    function updateSaleProductInfo() {
-        const saleProductSelect = document.getElementById('saleProduct');
-        const salePriceInput = document.getElementById('salePrice');
-        const saleQuantityInput = document.getElementById('saleQuantity');
-        const availableQuantitySpan = document.getElementById('availableQuantity');
-        
-        if (!saleProductSelect || !salePriceInput) return;
-        
-        const selectedOption = saleProductSelect.options[saleProductSelect.selectedIndex];
-        
-        if (selectedOption && selectedOption.value) {
-            const price = parseFloat(selectedOption.getAttribute('data-price'));
-            const quantity = parseInt(selectedOption.getAttribute('data-quantity'));
-            
-            salePriceInput.value = formatCurrency(price);
-            
-            if (availableQuantitySpan) {
-                availableQuantitySpan.textContent = `الكمية المتاحة: ${quantity}`;
-            }
-            
-            // تحديث الإجمالي
-            updateSaleTotal();
-        } else {
-            salePriceInput.value = '';
-            if (availableQuantitySpan) {
-                availableQuantitySpan.textContent = '';
-            }
-            if (saleQuantityInput) {
-                saleQuantityInput.value = '';
-            }
-            document.getElementById('saleTotal').value = '';
-        }
-    }
-
-    /**
-     * تحديث الإجمالي في صفحة المبيعات
-     */
-    function updateSaleTotal() {
-        const saleProductSelect = document.getElementById('saleProduct');
-        const saleQuantityInput = document.getElementById('saleQuantity');
-        const saleTotalInput = document.getElementById('saleTotal');
-        
-        if (!saleProductSelect || !saleQuantityInput || !saleTotalInput) return;
-        
-        const selectedOption = saleProductSelect.options[saleProductSelect.selectedIndex];
-        
-        if (selectedOption && selectedOption.value && saleQuantityInput.value) {
-            const price = parseFloat(selectedOption.getAttribute('data-price'));
-            const quantity = parseInt(saleQuantityInput.value);
-            
-            if (quantity > 0) {
-                const total = price * quantity;
-                saleTotalInput.value = formatCurrency(total);
-            } else {
-                saleTotalInput.value = '';
-            }
-        } else {
-            saleTotalInput.value = '';
-        }
-    }
-
-    /**
-     * تنفيذ عملية البيع
-     */
-    function executeSale(event) {
-        event.preventDefault();
-        
-        const saleProductSelect = document.getElementById('saleProduct');
-        const saleQuantityInput = document.getElementById('saleQuantity');
-        
-        if (!saleProductSelect || !saleQuantityInput) return;
-        
-        const selectedOption = saleProductSelect.options[saleProductSelect.selectedIndex];
-        
-        // التحقق من اختيار منتج
-        if (!selectedOption || !selectedOption.value) {
-            document.getElementById('saleProductError').textContent = 'يجب اختيار منتج';
-            return;
-        }
-        
-        const productId = parseInt(selectedOption.value);
-        const productName = selectedOption.getAttribute('data-name');
-        const price = parseFloat(selectedOption.getAttribute('data-price'));
-        const availableQuantity = parseInt(selectedOption.getAttribute('data-quantity'));
-        const quantity = parseInt(saleQuantityInput.value);
-        
-        // التحقق من الكمية
-        if (!quantity || quantity <= 0) {
-            document.getElementById('saleQuantityError').textContent = 'يجب إدخال كمية صحيحة';
-            return;
-        }
-        
-        // التحقق من توفر الكمية
-        if (quantity > availableQuantity) {
-            document.getElementById('saleQuantityError').textContent = `الكمية غير كافية. المتاح: ${availableQuantity}`;
-            return;
-        }
-        
-        // مسح رسائل الخطأ
-        document.getElementById('saleProductError').textContent = '';
-        document.getElementById('saleQuantityError').textContent = '';
-        
-        // إنشاء عملية البيع
-        const sale = {
-            productId: productId,
-            productName: productName,
-            quantity: quantity,
-            price: price,
-            total: price * quantity
-        };
-        
-        // إضافة البيع
-        addSale(sale);
-        
-        // تحديث المخزون
-        const products = getProducts();
-        const product = products.find(p => p.id === productId);
-        if (product) {
-            product.quantity -= quantity;
-            saveProducts(products);
-        }
-        
-        // عرض الفاتورة
-        showInvoice(sale);
-        
-        // عرض رسالة نجاح
-        showNotification('تم تنفيذ البيع بنجاح', 'success');
-        
-        // تحديث الواجهة
-        updateSalesProductSelect();
-        renderSalesTable();
-        updateDashboard();
-        
-        // إعادة تعيين النموذج
-        document.getElementById('saleForm').reset();
-        document.getElementById('salePrice').value = '';
-        document.getElementById('saleTotal').value = '';
-        const availableQuantitySpan = document.getElementById('availableQuantity');
-        if (availableQuantitySpan) {
-            availableQuantitySpan.textContent = '';
-        }
-    }
-
-    /**
-     * عرض الفاتورة
-     */
-    function showInvoice(sale) {
-        const invoiceContainer = document.getElementById('invoiceContainer');
-        if (!invoiceContainer) return;
-        
-        const invoiceNumber = `INV-${sale.id}-${new Date().getFullYear()}`;
-        
-        invoiceContainer.innerHTML = `
-            <div class="invoice-content">
-                <div class="invoice-header">
-                    <h3>فاتورة بيع</h3>
-                    <div class="invoice-number">رقم الفاتورة: ${invoiceNumber}</div>
-                    <div>التاريخ: ${formatDate(sale.date)}</div>
-                </div>
-                <div class="invoice-details">
-                    <div class="invoice-row">
-                        <span class="invoice-label">المنتج:</span>
-                        <span class="invoice-value">${sale.productName}</span>
-                    </div>
-                    <div class="invoice-row">
-                        <span class="invoice-label">الكمية:</span>
-                        <span class="invoice-value">${sale.quantity}</span>
-                    </div>
-                    <div class="invoice-row">
-                        <span class="invoice-label">سعر الوحدة:</span>
-                        <span class="invoice-value">${formatCurrency(sale.price)}</span>
-                    </div>
-                    <div class="invoice-row">
-                        <span class="invoice-label">الإجمالي:</span>
-                        <span class="invoice-value">${formatCurrency(sale.total)}</span>
-                    </div>
-                </div>
-                <div class="invoice-footer">
-                    <p>شكراً لتعاملكم معنا</p>
-                    <p>نظام إدارة المخازن © ${new Date().getFullYear()}</p>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * عرض جدول المبيعات
-     */
-    function renderSalesTable() {
-        const salesTableBody = document.getElementById('salesTableBody');
-        const noSalesMessage = document.getElementById('noSalesMessage');
-        
-        if (!salesTableBody) return;
-        
-        const sales = getSales();
-        const recentSales = sales.slice(-10).reverse();
-        
-        if (recentSales.length === 0) {
-            salesTableBody.innerHTML = '';
-            if (noSalesMessage) noSalesMessage.style.display = 'block';
-        } else {
-            if (noSalesMessage) noSalesMessage.style.display = 'none';
-            
-            salesTableBody.innerHTML = recentSales.map((sale, index) => `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td><strong>${sale.productName}</strong></td>
-                    <td>${sale.quantity}</td>
-                    <td>${formatCurrency(sale.price)}</td>
-                    <td><strong>${formatCurrency(sale.total)}</strong></td>
-                    <td>${formatDate(sale.date)} ${sale.time || ''}</td>
-                </tr>
-            `).join('');
-        }
-    }
-
-    // ============================================
-    // التقارير
-    // ============================================
-    
-    /**
-     * تحديث صفحة التقارير
-     */
-    function updateReports() {
-        // تحديث الإحصائيات
-        const reportTotalProducts = document.getElementById('reportTotalProducts');
-        const reportTotalSales = document.getElementById('reportTotalSales');
-        const reportTotalProfits = document.getElementById('reportTotalProfits');
-        
-        if (reportTotalProducts) reportTotalProducts.textContent = getTotalProducts();
-        if (reportTotalSales) reportTotalSales.textContent = getTotalSalesCount();
-        if (reportTotalProfits) reportTotalProfits.textContent = formatCurrency(getTotalProfits());
-        
-        // تحديث أكثر المنتجات مبيعاً
-        const topSellingTableBody = document.getElementById('topSellingTableBody');
-        const noTopSellingMessage = document.getElementById('noTopSellingMessage');
-        
-        if (topSellingTableBody) {
-            const topProducts = getTopSellingProducts(5);
-            
-            if (topProducts.length === 0) {
-                topSellingTableBody.innerHTML = '';
-                if (noTopSellingMessage) noTopSellingMessage.style.display = 'block';
-            } else {
-                if (noTopSellingMessage) noTopSellingMessage.style.display = 'none';
-                
-                topSellingTableBody.innerHTML = topProducts.map((item, index) => `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td><strong>${item.productName}</strong></td>
-                        <td>${item.count}</td>
-                        <td>${formatCurrency(item.totalAmount)}</td>
-                    </tr>
-                `).join('');
-            }
-        }
-        
-        // تحديث المنتجات منخفضة المخزون
-        const lowStockTableBody = document.getElementById('lowStockTableBody');
-        const noLowStockMessage = document.getElementById('noLowStockMessage');
-        
-        if (lowStockTableBody) {
-            const lowStockProducts = getLowStockProducts();
-            
-            if (lowStockProducts.length === 0) {
-                lowStockTableBody.innerHTML = '';
-                if (noLowStockMessage) noLowStockMessage.style.display = 'block';
-            } else {
-                if (noLowStockMessage) noLowStockMessage.style.display = 'none';
-                
-                lowStockTableBody.innerHTML = lowStockProducts.map((product, index) => `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td><strong>${product.name}</strong></td>
-                        <td>
-                            <span class="badge badge-danger">${product.quantity}</span>
-                        </td>
-                        <td>${product.supplier}</td>
-                    </tr>
-                `).join('');
-            }
-        }
-        
-        // تحديث آخر المبيعات
-        const reportSalesTableBody = document.getElementById('reportSalesTableBody');
-        const noReportSalesMessage = document.getElementById('noReportSalesMessage');
-        
-        if (reportSalesTableBody) {
-            const recentSales = getRecentSales(10);
-            
-            if (recentSales.length === 0) {
-                reportSalesTableBody.innerHTML = '';
-                if (noReportSalesMessage) noReportSalesMessage.style.display = 'block';
-            } else {
-                if (noReportSalesMessage) noReportSalesMessage.style.display = 'none';
-                
-                reportSalesTableBody.innerHTML = recentSales.map((sale, index) => `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td><strong>${sale.productName}</strong></td>
-                        <td>${sale.quantity}</td>
-                        <td>${formatCurrency(sale.total)}</td>
-                        <td>${formatDate(sale.date)}</td>
-                    </tr>
-                `).join('');
-            }
-        }
-    }
-
-    // ============================================
-    // طباعة الفاتورة والتقرير
-    // ============================================
-    function initPrintButtons() {
-        // زر طباعة الفاتورة
-        const printInvoiceBtn = document.getElementById('printInvoice');
-        if (printInvoiceBtn) {
-            printInvoiceBtn.addEventListener('click', () => {
-                const invoiceContainer = document.getElementById('invoiceContainer');
-                if (invoiceContainer && invoiceContainer.querySelector('.invoice-content')) {
-                    window.print();
-                } else {
-                    showNotification('لا توجد فاتورة للطباعة', 'warning');
-                }
-            });
-        }
-        
-        // زر طباعة التقرير
-        const printReportBtn = document.getElementById('printReport');
-        if (printReportBtn) {
-            printReportBtn.addEventListener('click', () => {
-                window.print();
-            });
-        }
-    }
-
-    // ============================================
-    // تهيئة جميع مستمعي الأحداث
-    // ============================================
-    function initEventListeners() {
-        // Sidebar
-        initSidebar();
-        
-        // Product Modal
-        const showAddProductBtn = document.getElementById('showAddProductForm');
-        const closeModalBtn = document.getElementById('closeModal');
-        const cancelProductBtn = document.getElementById('cancelProductBtn');
-        const productForm = document.getElementById('productForm');
-        const modalOverlay = document.querySelector('.modal-overlay');
-        
-        if (showAddProductBtn) {
-            showAddProductBtn.addEventListener('click', openAddProductModal);
-        }
-        
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', closeModal);
-        }
-        
-        if (cancelProductBtn) {
-            cancelProductBtn.addEventListener('click', closeModal);
-        }
-        
-        if (modalOverlay) {
-            modalOverlay.addEventListener('click', closeModal);
-        }
-        
-        if (productForm) {
-            productForm.addEventListener('submit', saveProduct);
-        }
-        
-        // إغلاق المودال بزر Escape
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                const modal = document.getElementById('productModal');
-                if (modal && modal.classList.contains('active')) {
-                    closeModal();
-                }
-            }
-        });
-        
-        // Product Filters
-        const searchInput = document.getElementById('searchInput');
-        const categoryFilter = document.getElementById('categoryFilter');
-        const sortBy = document.getElementById('sortBy');
-        
-        if (searchInput) {
-            searchInput.addEventListener('input', () => renderProductsTable(1));
-        }
-        
-        if (categoryFilter) {
-            categoryFilter.addEventListener('change', () => renderProductsTable(1));
-        }
-        
-        if (sortBy) {
-            sortBy.addEventListener('change', () => renderProductsTable(1));
-        }
-        
-        // Sales
-        const saleProductSelect = document.getElementById('saleProduct');
-        const saleQuantityInput = document.getElementById('saleQuantity');
-        const saleForm = document.getElementById('saleForm');
-        
-        if (saleProductSelect) {
-            saleProductSelect.addEventListener('change', updateSaleProductInfo);
-        }
-        
-        if (saleQuantityInput) {
-            saleQuantityInput.addEventListener('input', updateSaleTotal);
-        }
-        
-        if (saleForm) {
-            saleForm.addEventListener('submit', executeSale);
-        }
-        
-        // Print Buttons
-        initPrintButtons();
-    }
-
-    // ============================================
-    // التهيئة الأولية
-    // ============================================
-    function init() {
-        // تهيئة البيانات
-        initializeData();
-        
-        // تحديث التاريخ
-        updateNavbarDate();
-        
-        // تحديث التاريخ كل دقيقة
-        setInterval(updateNavbarDate, 60000);
-        
-        // تهيئة المستمعين
-        initEventListeners();
-        
-        // تحديث المحتوى حسب الصفحة
-        const currentPath = window.location.pathname;
-        const pageName = currentPath.split('/').pop();
-        
-        if (pageName === 'index.html' || pageName === '') {
-            updateDashboard();
-        } else if (pageName === 'products.html') {
-            renderProductsTable();
-        } else if (pageName === 'sales.html') {
-            updateSalesProductSelect();
-            renderSalesTable();
-        } else if (pageName === 'reports.html') {
-            updateReports();
-        }
-        
-        // تحديث لوحة التحكم إذا كانت موجودة
-        updateDashboard();
-    }
-
-    // بدء التطبيق
-    init();
-});
+            if (productsTable)
