@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <!-- Navbar -->
@@ -30,8 +30,12 @@
                 </div>
                 <div class="nav-user">
                     <i class="fas fa-user-circle"></i>
-                    <span>مدير النظام</span>
+                    <span id="currentUserName">مدير النظام</span>
                 </div>
+                <button class="btn btn-sm btn-danger logout-btn" id="logoutButton" title="تسجيل الخروج">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="logout-text">تسجيل الخروج</span>
+                </button>
             </div>
         </div>
     </nav>
@@ -81,8 +85,10 @@
         <div class="container">
             <!-- Page Header -->
             <div class="page-header">
-                <h2 class="page-title">التقارير</h2>
-                <p class="page-description">عرض وتحليل تقارير المخزون والمبيعات</p>
+                <div>
+                    <h2 class="page-title">التقارير</h2>
+                    <p class="page-description">عرض وتحليل تقارير المخزون والمبيعات</p>
+                </div>
                 <div class="page-actions">
                     <button class="btn btn-primary" id="printReport">
                         <i class="fas fa-print"></i>
