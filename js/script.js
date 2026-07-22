@@ -1,6 +1,7 @@
 /**
  * نظام إدارة المخازن والمبيعات
- * JavaScript File - تم الإصلاح
+ * JavaScript File - كامل ومعدل
+ * جميع الحقوق محفوظة © 2024
  */
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -24,8 +25,10 @@ document.addEventListener("DOMContentLoaded", function() {
     function saveToLocalStorage(key, data) {
         try {
             localStorage.setItem(key, JSON.stringify(data));
+            return true;
         } catch (error) {
             console.error('خطأ في حفظ البيانات:', error);
+            return false;
         }
     }
 
@@ -53,7 +56,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     fullName: 'مدير النظام',
                     role: 'admin',
                     email: 'admin@example.com',
-                    createdAt: new Date().toISOString()
+                    createdAt: '2024-01-01'
                 },
                 {
                     id: 2,
@@ -62,10 +65,11 @@ document.addEventListener("DOMContentLoaded", function() {
                     fullName: 'مستخدم عادي',
                     role: 'user',
                     email: 'user@example.com',
-                    createdAt: new Date().toISOString()
+                    createdAt: '2024-01-01'
                 }
             ];
             saveToLocalStorage(USERS_KEY, defaultUsers);
+            console.log('تم إنشاء المستخدمين الافتراضيين');
         }
     }
 
@@ -87,7 +91,8 @@ document.addEventListener("DOMContentLoaded", function() {
         var userData = getFromLocalStorage(CURRENT_USER_KEY);
         if (userData && userData.sessionExpiry) {
             if (new Date().getTime() > userData.sessionExpiry) {
-                logout();
+                // انتهت الجلسة
+                localStorage.removeItem(CURRENT_USER_KEY);
                 return null;
             }
         }
@@ -96,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function isLoggedIn() {
         var currentUser = getCurrentUser();
-        return currentUser && currentUser.username ? true : false;
+        return (currentUser && currentUser.username) ? true : false;
     }
 
     function login(username, password, rememberMe) {
@@ -122,31 +127,49 @@ document.addEventListener("DOMContentLoaded", function() {
         };
         
         saveToLocalStorage(CURRENT_USER_KEY, sessionData);
+        console.log('تم تسجيل الدخول بنجاح للمستخدم:', username);
         
         return { success: true, user: sessionData };
     }
 
     function logout() {
+        console.log('جاري تسجيل الخروج...');
         localStorage.removeItem(CURRENT_USER_KEY);
-        window.location.href = 'login.html';
+        console.log('تم حذف بيانات الجلسة');
+        window.location.replace('login.html');
     }
 
     function checkAuth() {
         var currentPath = window.location.pathname;
         var pageName = currentPath.split('/').pop();
         
+        console.log('الصفحة الحالية:', pageName);
+        console.log('حالة تسجيل الدخول:', isLoggedIn());
+        
         // إذا كانت الصفحة هي login.html
-        if (pageName === 'login.html' || pageName === '' || currentPath === '/') {
+        if (pageName === 'login.html') {
             // إذا كان المستخدم مسجل دخوله بالفعل، توجيهه إلى لوحة التحكم
-            if (isLoggedIn() && pageName === 'login.html') {
-                window.location.href = 'index.html';
+            if (isLoggedIn()) {
+                console.log('المستخدم مسجل دخوله، جاري التوجيه للوحة التحكم');
+                window.location.replace('index.html');
+            }
+            return;
+        }
+        
+        // إذا كان الملف مفتوح مباشرة بدون اسم (مثل localhost)
+        if (pageName === '' || currentPath === '/' || currentPath.endsWith('/')) {
+            if (isLoggedIn()) {
+                window.location.replace('index.html');
+            } else {
+                window.location.replace('login.html');
             }
             return;
         }
         
         // التحقق من تسجيل الدخول لجميع الصفحات الأخرى
         if (!isLoggedIn()) {
-            window.location.href = 'login.html';
+            console.log('المستخدم غير مسجل، جاري التوجيه لصفحة تسجيل الدخول');
+            window.location.replace('login.html');
             return;
         }
         
@@ -167,12 +190,14 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // ============================================
-    // معالجة تسجيل الدخول
+    // معالجة صفحة تسجيل الدخول
     // ============================================
     
     function initLoginPage() {
         var loginForm = document.getElementById('loginForm');
         if (!loginForm) return;
+        
+        console.log('تهيئة صفحة تسجيل الدخول');
         
         var loginUsername = document.getElementById('loginUsername');
         var loginPassword = document.getElementById('loginPassword');
@@ -185,21 +210,27 @@ document.addEventListener("DOMContentLoaded", function() {
         
         // زر إظهار/إخفاء كلمة المرور
         if (passwordToggle) {
-            passwordToggle.addEventListener('click', function() {
+            passwordToggle.onclick = function() {
                 if (loginPassword.getAttribute('type') === 'password') {
                     loginPassword.setAttribute('type', 'text');
-                    this.querySelector('i').classList.remove('fa-eye');
-                    this.querySelector('i').classList.add('fa-eye-slash');
+                    var icon = this.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    }
                 } else {
                     loginPassword.setAttribute('type', 'password');
-                    this.querySelector('i').classList.remove('fa-eye-slash');
-                    this.querySelector('i').classList.add('fa-eye');
+                    var icon = this.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
                 }
-            });
+            };
         }
         
         // معالجة تقديم نموذج تسجيل الدخول
-        loginForm.addEventListener('submit', function(e) {
+        loginForm.onsubmit = function(e) {
             e.preventDefault();
             
             var username = loginUsername.value.trim();
@@ -222,7 +253,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 isValid = false;
             }
             
-            if (!isValid) return;
+            if (!isValid) return false;
             
             // محاولة تسجيل الدخول
             var remember = rememberMe ? rememberMe.checked : false;
@@ -242,38 +273,67 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
                 loginPassword.value = '';
             }
-        });
+            
+            return false;
+        };
         
-        // ملء بيانات الدخول الافتراضية
+        // ملء بيانات الدخول الافتراضية عند النقر على معلومات الدخول
         var loginInfo = document.querySelector('.login-info');
         if (loginInfo) {
-            loginInfo.addEventListener('click', function() {
+            loginInfo.style.cursor = 'pointer';
+            loginInfo.onclick = function() {
                 loginUsername.value = 'admin';
                 loginPassword.value = 'admin123';
-            });
-            loginInfo.style.cursor = 'pointer';
+            };
         }
     }
 
     // ============================================
-    // زر تسجيل الخروج
+    // زر تسجيل الخروج - تم الإصلاح
     // ============================================
     
     function initLogoutButton() {
         var logoutButton = document.getElementById('logoutButton');
-        if (logoutButton) {
-            logoutButton.addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                var confirmed = confirm('هل أنت متأكد من تسجيل الخروج؟');
-                if (confirmed) {
-                    showNotification('تم تسجيل الخروج بنجاح', 'success');
-                    setTimeout(function() {
-                        logout();
-                    }, 500);
-                }
-            });
+        
+        if (!logoutButton) {
+            console.log('زر تسجيل الخروج غير موجود في هذه الصفحة');
+            return;
         }
+        
+        console.log('تم العثور على زر تسجيل الخروج، جاري تهيئته');
+        
+        // استخدام onclick مباشرة لتجنب مشاكل addEventListener
+        logoutButton.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('تم النقر على زر تسجيل الخروج');
+            
+            var confirmed = confirm('هل أنت متأكد من تسجيل الخروج؟');
+            
+            if (confirmed) {
+                console.log('تم تأكيد تسجيل الخروج');
+                
+                // إظهار رسالة
+                showNotification('تم تسجيل الخروج بنجاح', 'success');
+                
+                // حذف بيانات الجلسة
+                localStorage.removeItem(CURRENT_USER_KEY);
+                console.log('تم حذف بيانات الجلسة');
+                
+                // التوجيه إلى صفحة تسجيل الدخول
+                setTimeout(function() {
+                    console.log('جاري التوجيه إلى صفحة تسجيل الدخول');
+                    window.location.href = 'login.html';
+                }, 300);
+            } else {
+                console.log('تم إلغاء تسجيل الخروج');
+            }
+            
+            return false;
+        };
+        
+        console.log('تم تهيئة زر تسجيل الخروج بنجاح');
     }
 
     // ============================================
@@ -349,6 +409,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             ];
             saveToLocalStorage(PRODUCTS_KEY, defaultProducts);
+            console.log('تم إنشاء المنتجات الافتراضية');
         }
 
         // تهيئة المبيعات
@@ -378,6 +439,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             ];
             saveToLocalStorage(SALES_KEY, defaultSales);
+            console.log('تم إنشاء المبيعات الافتراضية');
         }
 
         // تهيئة الإعدادات
@@ -389,6 +451,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 language: 'ar'
             };
             saveToLocalStorage(SETTINGS_KEY, defaultSettings);
+            console.log('تم إنشاء الإعدادات الافتراضية');
         }
     }
 
@@ -600,7 +663,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function getRecentSales(limit) {
         var sales = getSales();
         var recentSales = [];
-        var start = sales.length - limit;
+        var start = sales.length - (limit || 5);
         if (start < 0) start = 0;
         
         for (var i = sales.length - 1; i >= start; i--) {
@@ -630,14 +693,16 @@ document.addEventListener("DOMContentLoaded", function() {
         
         var result = [];
         for (var key in productSales) {
-            result.push(productSales[key]);
+            if (productSales.hasOwnProperty(key)) {
+                result.push(productSales[key]);
+            }
         }
         
         result.sort(function(a, b) {
             return b.count - a.count;
         });
         
-        return result.slice(0, limit);
+        return result.slice(0, limit || 5);
     }
 
     // ============================================
@@ -670,11 +735,11 @@ document.addEventListener("DOMContentLoaded", function() {
         prevBtn.className = 'pagination-btn';
         prevBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
         prevBtn.disabled = currentPage === 1;
-        prevBtn.addEventListener('click', function() {
+        prevBtn.onclick = function() {
             if (currentPage > 1) {
                 renderProductsTable(currentPage - 1);
             }
-        });
+        };
         container.appendChild(prevBtn);
         
         // أرقام الصفحات
@@ -686,10 +751,11 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             pageBtn.textContent = i;
             
+            // استخدام closure للحفاظ على قيمة i
             (function(pageNum) {
-                pageBtn.addEventListener('click', function() {
+                pageBtn.onclick = function() {
                     renderProductsTable(pageNum);
-                });
+                };
             })(i);
             
             container.appendChild(pageBtn);
@@ -700,11 +766,11 @@ document.addEventListener("DOMContentLoaded", function() {
         nextBtn.className = 'pagination-btn';
         nextBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
         nextBtn.disabled = currentPage === totalPages;
-        nextBtn.addEventListener('click', function() {
+        nextBtn.onclick = function() {
             if (currentPage < totalPages) {
                 renderProductsTable(currentPage + 1);
             }
-        });
+        };
         container.appendChild(nextBtn);
     }
 
@@ -716,7 +782,7 @@ document.addEventListener("DOMContentLoaded", function() {
         // إزالة الإشعارات السابقة
         var existingNotifications = document.querySelectorAll('.notification');
         for (var i = 0; i < existingNotifications.length; i++) {
-            existingNotifications[i].remove();
+            existingNotifications[i].parentNode.removeChild(existingNotifications[i]);
         }
         
         var notification = document.createElement('div');
@@ -724,22 +790,22 @@ document.addEventListener("DOMContentLoaded", function() {
         
         var icon = '';
         if (type === 'success') {
-            icon = '<i class="fas fa-check-circle"></i>';
+            icon = '<i class="fas fa-check-circle"></i> ';
         } else if (type === 'error') {
-            icon = '<i class="fas fa-times-circle"></i>';
+            icon = '<i class="fas fa-times-circle"></i> ';
         } else if (type === 'warning') {
-            icon = '<i class="fas fa-exclamation-triangle"></i>';
+            icon = '<i class="fas fa-exclamation-triangle"></i> ';
         } else {
-            icon = '<i class="fas fa-info-circle"></i>';
+            icon = '<i class="fas fa-info-circle"></i> ';
         }
         
-        notification.innerHTML = icon + ' ' + message;
+        notification.innerHTML = icon + message;
         document.body.appendChild(notification);
         
         // إزالة الإشعار بعد 3 ثواني
         setTimeout(function() {
             if (notification.parentNode) {
-                notification.remove();
+                notification.parentNode.removeChild(notification);
             }
         }, 3000);
     }
@@ -749,6 +815,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // ============================================
     
     function formatCurrency(amount) {
+        if (isNaN(amount)) return '0 ج.م';
         return amount.toLocaleString('ar-EG') + ' ج.م';
     }
 
@@ -758,7 +825,7 @@ document.addEventListener("DOMContentLoaded", function() {
             var options = { year: 'numeric', month: 'long', day: 'numeric' };
             return date.toLocaleDateString('ar-EG', options);
         } catch (e) {
-            return dateString;
+            return dateString || '';
         }
     }
 
@@ -798,16 +865,16 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
         
-        sidebarToggle.addEventListener('click', toggleSidebar);
-        sidebarOverlay.addEventListener('click', toggleSidebar);
+        sidebarToggle.onclick = toggleSidebar;
+        sidebarOverlay.onclick = toggleSidebar;
         
         var sidebarLinks = sidebar.querySelectorAll('.sidebar-link');
         for (var i = 0; i < sidebarLinks.length; i++) {
-            sidebarLinks[i].addEventListener('click', function() {
+            sidebarLinks[i].onclick = function() {
                 if (window.innerWidth < 1024) {
                     toggleSidebar();
                 }
-            });
+            };
         }
     }
 
@@ -873,16 +940,19 @@ document.addEventListener("DOMContentLoaded", function() {
         
         var products = getProducts();
         
+        // تطبيق البحث
         var searchInput = document.getElementById('searchInput');
         if (searchInput && searchInput.value) {
             products = searchProducts(products, searchInput.value);
         }
         
+        // تطبيق الفلترة
         var categoryFilter = document.getElementById('categoryFilter');
         if (categoryFilter && categoryFilter.value) {
             products = filterProductsByCategory(products, categoryFilter.value);
         }
         
+        // تطبيق الترتيب
         var sortBy = document.getElementById('sortBy');
         if (sortBy && sortBy.value) {
             products = sortProducts(products, sortBy.value);
@@ -914,13 +984,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 html += '<td>' + product.supplier + '</td>';
                 html += '<td>' + formatDate(product.date) + '</td>';
                 html += '<td><div class="actions-cell">';
-                html += '<button class="btn btn-sm btn-primary edit-product-btn" data-id="' + product.id + '" title="تعديل"><i class="fas fa-edit"></i></button>';
+                html += '<button class="btn btn-sm btn-primary edit-product-btn" data-id="' + product.id + '" title="تعديل"><i class="fas fa-edit"></i></button> ';
                 html += '<button class="btn btn-sm btn-danger delete-product-btn" data-id="' + product.id + '" title="حذف"><i class="fas fa-trash"></i></button>';
                 html += '</div></td>';
                 html += '</tr>';
             }
             tableBody.innerHTML = html;
             
+            // ربط أزرار التعديل والحذف
             attachProductActionListeners();
         }
         
@@ -932,18 +1003,18 @@ document.addEventListener("DOMContentLoaded", function() {
     function attachProductActionListeners() {
         var editButtons = document.querySelectorAll('.edit-product-btn');
         for (var i = 0; i < editButtons.length; i++) {
-            editButtons[i].addEventListener('click', function() {
+            editButtons[i].onclick = function() {
                 var productId = parseInt(this.getAttribute('data-id'));
                 openEditProductModal(productId);
-            });
+            };
         }
         
         var deleteButtons = document.querySelectorAll('.delete-product-btn');
         for (var j = 0; j < deleteButtons.length; j++) {
-            deleteButtons[j].addEventListener('click', function() {
+            deleteButtons[j].onclick = function() {
                 var productId = parseInt(this.getAttribute('data-id'));
                 confirmDeleteProduct(productId);
-            });
+            };
         }
     }
 
@@ -1021,39 +1092,40 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function validateProductForm(data) {
         var isValid = true;
+        var el;
         
         if (!data.name || data.name.trim().length < 2) {
-            var el = document.getElementById('productNameError');
+            el = document.getElementById('productNameError');
             if (el) el.textContent = 'يجب إدخال اسم المنتج (حرفين على الأقل)';
             isValid = false;
         }
         
         if (!data.code || data.code.trim().length < 3) {
-            var el = document.getElementById('productCodeError');
+            el = document.getElementById('productCodeError');
             if (el) el.textContent = 'يجب إدخال كود المنتج (3 أحرف على الأقل)';
             isValid = false;
         }
         
         if (!data.category) {
-            var el = document.getElementById('productCategoryError');
+            el = document.getElementById('productCategoryError');
             if (el) el.textContent = 'يجب اختيار التصنيف';
             isValid = false;
         }
         
-        if (!data.price || data.price <= 0) {
-            var el = document.getElementById('productPriceError');
+        if (!data.price || isNaN(data.price) || data.price <= 0) {
+            el = document.getElementById('productPriceError');
             if (el) el.textContent = 'يجب إدخال سعر صحيح أكبر من صفر';
             isValid = false;
         }
         
-        if (data.quantity === '' || data.quantity === null || data.quantity === undefined || data.quantity < 0) {
-            var el = document.getElementById('productQuantityError');
+        if (data.quantity === '' || data.quantity === null || data.quantity === undefined || isNaN(data.quantity) || data.quantity < 0) {
+            el = document.getElementById('productQuantityError');
             if (el) el.textContent = 'يجب إدخال كمية صحيحة';
             isValid = false;
         }
         
         if (!data.supplier || data.supplier.trim().length < 2) {
-            var el = document.getElementById('productSupplierError');
+            el = document.getElementById('productSupplierError');
             if (el) el.textContent = 'يجب إدخال اسم المورد';
             isValid = false;
         }
@@ -1074,7 +1146,7 @@ document.addEventListener("DOMContentLoaded", function() {
         };
         
         if (!validateProductForm(productData)) {
-            return;
+            return false;
         }
         
         if (editingProductId) {
@@ -1089,6 +1161,8 @@ document.addEventListener("DOMContentLoaded", function() {
         renderProductsTable(currentPage);
         updateDashboard();
         updateSalesProductSelect();
+        
+        return false;
     }
 
     function confirmDeleteProduct(productId) {
@@ -1201,14 +1275,14 @@ document.addEventListener("DOMContentLoaded", function() {
         var saleProductSelect = document.getElementById('saleProduct');
         var saleQuantityInput = document.getElementById('saleQuantity');
         
-        if (!saleProductSelect || !saleQuantityInput) return;
+        if (!saleProductSelect || !saleQuantityInput) return false;
         
         var selectedOption = saleProductSelect.options[saleProductSelect.selectedIndex];
         
         if (!selectedOption || !selectedOption.value) {
             var saleProductError = document.getElementById('saleProductError');
             if (saleProductError) saleProductError.textContent = 'يجب اختيار منتج';
-            return;
+            return false;
         }
         
         var productId = parseInt(selectedOption.value);
@@ -1217,16 +1291,16 @@ document.addEventListener("DOMContentLoaded", function() {
         var availableQuantity = parseInt(selectedOption.getAttribute('data-quantity'));
         var quantity = parseInt(saleQuantityInput.value);
         
-        if (!quantity || quantity <= 0) {
+        if (!quantity || isNaN(quantity) || quantity <= 0) {
             var saleQuantityError = document.getElementById('saleQuantityError');
             if (saleQuantityError) saleQuantityError.textContent = 'يجب إدخال كمية صحيحة';
-            return;
+            return false;
         }
         
         if (quantity > availableQuantity) {
             var saleQuantityError = document.getElementById('saleQuantityError');
             if (saleQuantityError) saleQuantityError.textContent = 'الكمية غير كافية. المتاح: ' + availableQuantity;
-            return;
+            return false;
         }
         
         // مسح رسائل الخطأ
@@ -1275,6 +1349,8 @@ document.addEventListener("DOMContentLoaded", function() {
         
         var availableQuantitySpan = document.getElementById('availableQuantity');
         if (availableQuantitySpan) availableQuantitySpan.textContent = '';
+        
+        return false;
     }
 
     function showInvoice(sale) {
@@ -1444,21 +1520,21 @@ document.addEventListener("DOMContentLoaded", function() {
     function initPrintButtons() {
         var printInvoiceBtn = document.getElementById('printInvoice');
         if (printInvoiceBtn) {
-            printInvoiceBtn.addEventListener('click', function() {
+            printInvoiceBtn.onclick = function() {
                 var invoiceContainer = document.getElementById('invoiceContainer');
                 if (invoiceContainer && invoiceContainer.querySelector('.invoice-content')) {
                     window.print();
                 } else {
                     showNotification('لا توجد فاتورة للطباعة', 'warning');
                 }
-            });
+            };
         }
         
         var printReportBtn = document.getElementById('printReport');
         if (printReportBtn) {
-            printReportBtn.addEventListener('click', function() {
+            printReportBtn.onclick = function() {
                 window.print();
-            });
+            };
         }
     }
 
@@ -1477,33 +1553,34 @@ document.addEventListener("DOMContentLoaded", function() {
         var modalOverlay = document.querySelector('.modal-overlay');
         
         if (showAddProductBtn) {
-            showAddProductBtn.addEventListener('click', openAddProductModal);
+            showAddProductBtn.onclick = openAddProductModal;
         }
         
         if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', closeModal);
+            closeModalBtn.onclick = closeModal;
         }
         
         if (cancelProductBtn) {
-            cancelProductBtn.addEventListener('click', closeModal);
+            cancelProductBtn.onclick = closeModal;
         }
         
         if (modalOverlay) {
-            modalOverlay.addEventListener('click', closeModal);
+            modalOverlay.onclick = closeModal;
         }
         
         if (productForm) {
-            productForm.addEventListener('submit', saveProduct);
+            productForm.onsubmit = saveProduct;
         }
         
-        document.addEventListener('keydown', function(e) {
+        // إغلاق المودال بزر Escape
+        document.onkeydown = function(e) {
             if (e.key === 'Escape') {
                 var modal = document.getElementById('productModal');
                 if (modal && modal.classList.contains('active')) {
                     closeModal();
                 }
             }
-        });
+        };
         
         // Product Filters
         var searchInput = document.getElementById('searchInput');
@@ -1511,21 +1588,21 @@ document.addEventListener("DOMContentLoaded", function() {
         var sortBy = document.getElementById('sortBy');
         
         if (searchInput) {
-            searchInput.addEventListener('input', function() {
+            searchInput.oninput = function() {
                 renderProductsTable(1);
-            });
+            };
         }
         
         if (categoryFilter) {
-            categoryFilter.addEventListener('change', function() {
+            categoryFilter.onchange = function() {
                 renderProductsTable(1);
-            });
+            };
         }
         
         if (sortBy) {
-            sortBy.addEventListener('change', function() {
+            sortBy.onchange = function() {
                 renderProductsTable(1);
-            });
+            };
         }
         
         // Sales
@@ -1534,21 +1611,21 @@ document.addEventListener("DOMContentLoaded", function() {
         var saleForm = document.getElementById('saleForm');
         
         if (saleProductSelect) {
-            saleProductSelect.addEventListener('change', updateSaleProductInfo);
+            saleProductSelect.onchange = updateSaleProductInfo;
         }
         
         if (saleQuantityInput) {
-            saleQuantityInput.addEventListener('input', updateSaleTotal);
+            saleQuantityInput.oninput = updateSaleTotal;
         }
         
         if (saleForm) {
-            saleForm.addEventListener('submit', executeSale);
+            saleForm.onsubmit = executeSale;
         }
         
         // Print Buttons
         initPrintButtons();
         
-        // Logout
+        // Logout Button - تهيئة زر تسجيل الخروج
         initLogoutButton();
     }
 
@@ -1556,6 +1633,8 @@ document.addEventListener("DOMContentLoaded", function() {
     // التهيئة الأولية
     // ============================================
     function init() {
+        console.log('بدء تهيئة النظام...');
+        
         // تهيئة البيانات
         initializeData();
         
@@ -1578,14 +1657,20 @@ document.addEventListener("DOMContentLoaded", function() {
         var currentPath = window.location.pathname;
         var pageName = currentPath.split('/').pop();
         
+        console.log('الصفحة الحالية:', pageName);
+        
         if (pageName === 'index.html' || pageName === '') {
+            console.log('تحميل لوحة التحكم');
             updateDashboard();
         } else if (pageName === 'products.html') {
+            console.log('تحميل صفحة المنتجات');
             renderProductsTable(1);
         } else if (pageName === 'sales.html') {
+            console.log('تحميل صفحة المبيعات');
             updateSalesProductSelect();
             renderSalesTable();
         } else if (pageName === 'reports.html') {
+            console.log('تحميل صفحة التقارير');
             updateReports();
         }
         
@@ -1593,8 +1678,12 @@ document.addEventListener("DOMContentLoaded", function() {
         if (pageName !== 'login.html') {
             updateDashboard();
         }
+        
+        console.log('تم تهيئة النظام بنجاح');
     }
 
     // بدء التطبيق
     init();
+    
+    console.log('تم تحميل السكربت بنجاح');
 });
